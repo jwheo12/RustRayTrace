@@ -14,6 +14,7 @@ pub struct RenderOverrides {
 }
 
 impl RenderOverrides {
+    #[allow(dead_code)]
     pub const fn none() -> Self {
         Self {
             aspect_ratio: None,

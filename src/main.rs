@@ -9,6 +9,8 @@ fn normalize_book_name(name: &str) -> String {
 }
 
 fn main() {
+    eprintln!("Rayon threads: {}", rayon::current_num_threads());
+
     let mut args = std::env::args().skip(1);
     let book_arg = args.next().unwrap_or_else(|| "in_one_weekend".to_string());
     let scene = args.next().and_then(|arg| arg.parse::<i32>().ok());

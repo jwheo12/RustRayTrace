@@ -13,6 +13,7 @@ pub struct Aabb {
 
 impl Aabb {
     pub const EMPTY: Aabb = Aabb { x: Interval::EMPTY, y: Interval::EMPTY, z: Interval::EMPTY };
+    #[allow(dead_code)]
     pub const UNIVERSE: Aabb = Aabb {
         x: Interval::UNIVERSE,
         y: Interval::UNIVERSE,
