@@ -1,6 +1,8 @@
 mod config;
 mod books;
 mod gpu;
+mod cuda;
+mod render_io;
 
 fn normalize_book_name(name: &str) -> String {
     name.to_lowercase()
@@ -21,6 +23,10 @@ fn main() {
             backend = "gpu".to_string();
             continue;
         }
+        if arg == "--cuda" {
+            backend = "cuda".to_string();
+            continue;
+        }
         if arg == "--cpu" {
             backend = "cpu".to_string();
             continue;
@@ -29,7 +35,7 @@ fn main() {
             if let Some(value) = args.next() {
                 backend = value;
             } else {
-                eprintln!("--backend expects a value: cpu or gpu");
+                eprintln!("--backend expects a value: cpu, gpu, or cuda");
                 return;
             }
             continue;
@@ -49,7 +55,21 @@ fn main() {
     let scene = positional_args.get(1).and_then(|arg| arg.parse::<i32>().ok());
     let book_key = normalize_book_name(&book_arg);
 
-    if backend == "gpu" {
+    if backend == "cuda" {
+        if matches!(book_key.as_str(), "inoneweekend" | "oneweekend" | "weekend") {
+            match cuda::render_in_one_weekend() {
+                Ok(()) => return,
+                Err(err) => {
+                    eprintln!("CUDA render failed: {err}");
+                    eprintln!("Falling back to GPU.");
+                }
+            }
+        } else {
+            eprintln!("CUDA backend currently supports in_one_weekend only. Falling back to GPU.");
+        }
+    }
+
+    if backend == "gpu" || backend == "cuda" {
         if matches!(book_key.as_str(), "inoneweekend" | "oneweekend" | "weekend") {
             match gpu::render_in_one_weekend() {
                 Ok(()) => return,
@@ -70,7 +90,7 @@ fn main() {
             books::the_rest_of_your_life::run(None)
         }
         _ => {
-            eprintln!("Usage: cargo run -- <book> [scene]");
+            eprintln!("Usage: cargo run -- [--backend cpu|gpu|cuda] <book> [scene]");
             eprintln!("books: in_one_weekend, the_next_week, the_rest_of_your_life");
             eprintln!("example: cargo run -- the_next_week 3");
         }

@@ -1,6 +1,5 @@
-use std::io::{self, BufWriter, Write};
+use crate::render_io::write_ppm_from_accum;
 use std::time::Instant;
-
 use bytemuck::{Pod, Zeroable};
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
@@ -13,7 +12,7 @@ const GPU_SPP_PER_PASS: u32 = 64;
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct CameraUniform {
+pub(crate) struct CameraUniform {
     origin: [f32; 4],
     pixel00: [f32; 4],
     pixel_delta_u: [f32; 4],
@@ -27,7 +26,7 @@ struct CameraUniform {
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct SphereGpu {
+pub(crate) struct SphereGpu {
     center_radius: [f32; 4],
     material_index: u32,
     _pad: [u32; 3],
@@ -35,7 +34,7 @@ struct SphereGpu {
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct MaterialGpu {
+pub(crate) struct MaterialGpu {
     albedo_fuzz: [f32; 4],
     kind: u32,
     ref_idx: f32,
@@ -122,7 +121,7 @@ fn add_material(materials: &mut Vec<MaterialGpu>, kind: u32, albedo: [f32; 3], f
     index
 }
 
-fn build_in_one_weekend_scene() -> (CameraUniform, Vec<SphereGpu>, Vec<MaterialGpu>) {
+pub(crate) fn build_in_one_weekend_scene() -> (CameraUniform, Vec<SphereGpu>, Vec<MaterialGpu>) {
     let mut aspect_ratio = 16.0 / 9.0;
     let mut image_width = 1200;
     let mut samples_per_pixel = 10;
@@ -503,35 +502,5 @@ async fn render(mut camera: CameraUniform, spheres: &[SphereGpu], materials: &[M
     drop(data);
     readback_buffer.unmap();
 
-    Ok(())
-}
-
-fn write_ppm_from_accum(width: usize, height: usize, accum: &[f32], samples_per_pixel: u32) -> Result<(), String> {
-    let stdout = io::stdout();
-    let mut out = BufWriter::new(stdout.lock());
-    writeln!(out, "P3\n{} {}\n255", width, height).map_err(|e| e.to_string())?;
-
-    let scale = if samples_per_pixel > 0 { 1.0 / samples_per_pixel as f32 } else { 0.0 };
-    for y in 0..height {
-        for x in 0..width {
-            let idx = (y * width + x) * 4;
-            let mut r = accum[idx] * scale;
-            let mut g = accum[idx + 1] * scale;
-            let mut b = accum[idx + 2] * scale;
-
-            if !r.is_finite() { r = 0.0; }
-            if !g.is_finite() { g = 0.0; }
-            if !b.is_finite() { b = 0.0; }
-
-            r = r.max(0.0).sqrt();
-            g = g.max(0.0).sqrt();
-            b = b.max(0.0).sqrt();
-
-            let ir = (r.clamp(0.0, 0.999) * 256.0) as u8;
-            let ig = (g.clamp(0.0, 0.999) * 256.0) as u8;
-            let ib = (b.clamp(0.0, 0.999) * 256.0) as u8;
-            writeln!(out, "{} {} {}", ir, ig, ib).map_err(|e| e.to_string())?;
-        }
-    }
     Ok(())
 }
