@@ -4,7 +4,7 @@ use super::aabb::Aabb;
 use super::bvh::BvhNode;
 use super::hittable_list::HittableList;
 use super::interval::Interval;
-use super::material::Material;
+use super::material::MaterialRef;
 use super::ray::Ray;
 use super::sphere::Sphere;
 use super::vec3::{dot, Point3, Vec3};
@@ -12,7 +12,7 @@ use super::vec3::{dot, Point3, Vec3};
 pub struct HitRecord {
     pub p: Point3,
     pub normal: Vec3,
-    pub mat: Arc<dyn Material + Send + Sync>,
+    pub mat: MaterialRef,
     pub t: f64,
     pub front_face: bool,
 }
@@ -23,7 +23,7 @@ impl HitRecord {
         t: f64,
         r: &Ray,
         outward_normal: Vec3,
-        mat: Arc<dyn Material + Send + Sync>,
+        mat: MaterialRef,
     ) -> Self {
         let front_face = dot(r.direction(), outward_normal) < 0.0;
         let normal = if front_face { outward_normal } else { -outward_normal };

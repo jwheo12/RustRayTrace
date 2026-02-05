@@ -1,10 +1,8 @@
-use std::sync::Arc;
-
 use super::aabb::Aabb;
 use super::hittable::{make_ref, HitRecord, Hittable, HittableRef};
 use super::hittable_list::HittableList;
 use super::interval::Interval;
-use super::material::Material;
+use super::material::MaterialRef;
 use super::ray::Ray;
 use super::vec3::{cross, dot, unit_vector, Point3, Vec3};
 
@@ -13,14 +11,14 @@ pub struct Quad {
     u: Vec3,
     v: Vec3,
     w: Vec3,
-    mat: Arc<dyn Material + Send + Sync>,
+    mat: MaterialRef,
     bbox: Aabb,
     normal: Vec3,
     d: f64,
 }
 
 impl Quad {
-    pub fn new(q: Point3, u: Vec3, v: Vec3, mat: Arc<dyn Material + Send + Sync>) -> Self {
+    pub fn new(q: Point3, u: Vec3, v: Vec3, mat: MaterialRef) -> Self {
         let n = cross(u, v);
         let normal = unit_vector(n);
         let d = dot(normal, q);
@@ -92,7 +90,7 @@ impl Hittable for Quad {
 pub fn make_box(
     a: Point3,
     b: Point3,
-    mat: Arc<dyn Material + Send + Sync>,
+    mat: MaterialRef,
 ) -> HittableRef {
     let mut sides = HittableList::new();
 

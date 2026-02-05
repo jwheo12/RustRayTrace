@@ -1,13 +1,11 @@
 use std::io::{self, BufWriter, Write};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-
 use rayon::prelude::*;
 
 use super::color::write_color;
 use super::hittable::{Hittable, HittableRef};
 use super::interval::Interval;
-use super::pdf::{HittablePdf, MixturePdf, Pdf};
+use super::pdf::{make_pdf, HittablePdf, MixturePdf, Pdf};
 use super::ray::Ray;
 use super::rtweekend::{degrees_to_radians, random_double, INFINITY};
 use super::vec3::{
@@ -238,7 +236,7 @@ impl Camera {
             return emitted;
         }
 
-        let light_pdf: Arc<dyn Pdf + Send + Sync> = Arc::new(HittablePdf::new(lights.clone(), rec.p));
+        let light_pdf = make_pdf(HittablePdf::new(lights.clone(), rec.p));
         let mixed_pdf = MixturePdf::new(light_pdf, pdf_ptr);
 
         let scattered = Ray::new_with_time(rec.p, mixed_pdf.generate(), r.time());

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::hittable::HitRecord;
 use super::ray::Ray;
 use super::rtweekend::random_double;
@@ -5,6 +7,12 @@ use super::vec3::{dot, random_unit_vector, reflect, refract, unit_vector, Color}
 
 pub trait Material: Send + Sync {
     fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)>;
+}
+
+pub type MaterialRef = Arc<MaterialObject>;
+
+pub fn make_mat<T: Into<MaterialObject>>(material: T) -> MaterialRef {
+    Arc::new(material.into())
 }
 
 pub struct Lambertian {
@@ -90,5 +98,39 @@ impl Material for Dielectric {
 
         let scattered = Ray::new(rec.p, direction);
         Some((attenuation, scattered))
+    }
+}
+
+pub enum MaterialObject {
+    Lambertian(Lambertian),
+    Metal(Metal),
+    Dielectric(Dielectric),
+}
+
+impl From<Lambertian> for MaterialObject {
+    fn from(value: Lambertian) -> Self {
+        Self::Lambertian(value)
+    }
+}
+
+impl From<Metal> for MaterialObject {
+    fn from(value: Metal) -> Self {
+        Self::Metal(value)
+    }
+}
+
+impl From<Dielectric> for MaterialObject {
+    fn from(value: Dielectric) -> Self {
+        Self::Dielectric(value)
+    }
+}
+
+impl MaterialObject {
+    pub fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
+        match self {
+            MaterialObject::Lambertian(mat) => mat.scatter(r_in, rec),
+            MaterialObject::Metal(mat) => mat.scatter(r_in, rec),
+            MaterialObject::Dielectric(mat) => mat.scatter(r_in, rec),
+        }
     }
 }

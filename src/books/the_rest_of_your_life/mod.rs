@@ -20,13 +20,11 @@ mod sphere;
 mod texture;
 mod vec3;
 
-use std::sync::Arc;
-
 use bvh::BvhNode;
 use camera::Camera;
 use hittable::{make_ref, RotateY, Translate};
 use hittable_list::HittableList;
-use material::{Dielectric, DiffuseLight, EmptyMaterial, Lambertian};
+use material::{make_mat, Dielectric, DiffuseLight, EmptyMaterial, Lambertian};
 use quad::{make_box, Quad};
 use sphere::Sphere;
 use vec3::{Color, Point3, Vec3};
@@ -71,10 +69,10 @@ fn apply_overrides(cam: &mut Camera) {
 pub fn run(_scene: Option<i32>) {
     let mut world = HittableList::new();
 
-    let red = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
-    let white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
-    let green = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
-    let light = Arc::new(DiffuseLight::new(Color::new(15.0, 15.0, 15.0)));
+    let red = make_mat(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
+    let white = make_mat(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let green = make_mat(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
+    let light = make_mat(DiffuseLight::new(Color::new(15.0, 15.0, 15.0)));
 
     // Cornell box sides
     world.add(make_ref(Quad::new(
@@ -123,11 +121,11 @@ pub fn run(_scene: Option<i32>) {
     world.add(box1);
 
     // Glass Sphere
-    let glass = Arc::new(Dielectric::new(1.5));
+    let glass = make_mat(Dielectric::new(1.5));
     world.add(make_ref(Sphere::new(Point3::new(190.0, 90.0, 190.0), 90.0, glass)));
 
     // Light Sources
-    let empty_material = Arc::new(EmptyMaterial);
+    let empty_material = make_mat(EmptyMaterial);
     let mut lights = HittableList::new();
     lights.add(make_ref(Quad::new(
         Point3::new(343.0, 554.0, 332.0),

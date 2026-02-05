@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bytemuck = { version = "1.14", features = ["derive"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+pollster = "0.3"
 rand = { version = "0.8", features = ["small_rng"] }
 rayon = "1.10"
+wgpu = "0.19"

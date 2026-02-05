@@ -1,17 +1,16 @@
-use std::sync::Arc;
-
 use super::aabb::Aabb;
 use super::hittable::{HitRecord, Hittable, HittableRef};
 use super::interval::Interval;
-use super::material::{Isotropic, Material};
+use super::material::{make_mat, Isotropic, MaterialRef};
 use super::ray::Ray;
 use super::rtweekend::{random_double, INFINITY};
+use super::texture::TextureRef;
 use super::vec3::{Color, Vec3};
 
 pub struct ConstantMedium {
     boundary: HittableRef,
     neg_inv_density: f64,
-    phase_function: Arc<dyn Material + Send + Sync>,
+    phase_function: MaterialRef,
 }
 
 impl ConstantMedium {
@@ -19,12 +18,12 @@ impl ConstantMedium {
     pub fn new(
         boundary: HittableRef,
         density: f64,
-        tex: Arc<dyn super::texture::Texture + Send + Sync>,
+        tex: TextureRef,
     ) -> Self {
         Self {
             boundary,
             neg_inv_density: -1.0 / density,
-            phase_function: Arc::new(Isotropic::from_texture(tex)),
+            phase_function: make_mat(Isotropic::from_texture(tex)),
         }
     }
 
@@ -32,7 +31,7 @@ impl ConstantMedium {
         Self {
             boundary,
             neg_inv_density: -1.0 / density,
-            phase_function: Arc::new(Isotropic::new(albedo)),
+            phase_function: make_mat(Isotropic::new(albedo)),
         }
     }
 }

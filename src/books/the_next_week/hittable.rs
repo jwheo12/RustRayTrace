@@ -5,7 +5,7 @@ use super::bvh::BvhNode;
 use super::constant_medium::ConstantMedium;
 use super::hittable_list::HittableList;
 use super::interval::Interval;
-use super::material::Material;
+use super::material::MaterialRef;
 use super::quad::Quad;
 use super::ray::Ray;
 use super::rtweekend::{degrees_to_radians, INFINITY};
@@ -15,7 +15,7 @@ use super::vec3::{dot, Point3, Vec3};
 pub struct HitRecord {
     pub p: Point3,
     pub normal: Vec3,
-    pub mat: Arc<dyn Material + Send + Sync>,
+    pub mat: MaterialRef,
     pub t: f64,
     pub u: f64,
     pub v: f64,
@@ -28,7 +28,7 @@ impl HitRecord {
         t: f64,
         r: &Ray,
         outward_normal: Vec3,
-        mat: Arc<dyn Material + Send + Sync>,
+        mat: MaterialRef,
         u: f64,
         v: f64,
     ) -> Self {

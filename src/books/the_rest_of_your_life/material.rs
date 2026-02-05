@@ -1,17 +1,17 @@
 use std::sync::Arc;
 
 use super::hittable::HitRecord;
-use super::pdf::{CosinePdf, Pdf, SpherePdf};
+use super::pdf::{make_pdf, CosinePdf, PdfRef, SpherePdf};
 use super::ray::Ray;
 use super::rtweekend::random_double;
-use super::texture::{SolidColor, Texture};
+use super::texture::{make_tex, SolidColor, TextureRef};
 use super::vec3::{
     dot, random_unit_vector, reflect, refract, unit_vector, Color, Point3, Vec3,
 };
 
 pub struct ScatterRecord {
     pub attenuation: Color,
-    pub pdf_ptr: Option<Arc<dyn Pdf + Send + Sync>>,
+    pub pdf_ptr: Option<PdfRef>,
     pub skip_pdf: bool,
     pub skip_pdf_ray: Ray,
 }
@@ -30,16 +30,22 @@ pub trait Material: Send + Sync {
     }
 }
 
+pub type MaterialRef = Arc<MaterialObject>;
+
+pub fn make_mat<T: Into<MaterialObject>>(material: T) -> MaterialRef {
+    Arc::new(material.into())
+}
+
 pub struct Lambertian {
-    tex: Arc<dyn Texture + Send + Sync>,
+    tex: TextureRef,
 }
 
 impl Lambertian {
     pub fn new(albedo: Color) -> Self {
-        Self { tex: Arc::new(SolidColor::new(albedo)) }
+        Self { tex: make_tex(SolidColor::new(albedo)) }
     }
 
-    pub fn from_texture(tex: Arc<dyn Texture + Send + Sync>) -> Self {
+    pub fn from_texture(tex: TextureRef) -> Self {
         Self { tex }
     }
 }
@@ -48,7 +54,7 @@ impl Material for Lambertian {
     fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
         Some(ScatterRecord {
             attenuation: self.tex.value(rec.u, rec.v, rec.p),
-            pdf_ptr: Some(Arc::new(CosinePdf::new(rec.normal))),
+            pdf_ptr: Some(make_pdf(CosinePdf::new(rec.normal))),
             skip_pdf: false,
             skip_pdf_ray: Ray::new_with_time(rec.p, rec.normal, r_in.time()),
         })
@@ -131,16 +137,16 @@ impl Material for Dielectric {
 }
 
 pub struct DiffuseLight {
-    tex: Arc<dyn Texture + Send + Sync>,
+    tex: TextureRef,
 }
 
 impl DiffuseLight {
     pub fn new(emit: Color) -> Self {
-        Self { tex: Arc::new(SolidColor::new(emit)) }
+        Self { tex: make_tex(SolidColor::new(emit)) }
     }
 
     #[allow(dead_code)]
-    pub fn from_texture(tex: Arc<dyn Texture + Send + Sync>) -> Self {
+    pub fn from_texture(tex: TextureRef) -> Self {
         Self { tex }
     }
 }
@@ -155,15 +161,15 @@ impl Material for DiffuseLight {
 }
 
 pub struct Isotropic {
-    tex: Arc<dyn Texture + Send + Sync>,
+    tex: TextureRef,
 }
 
 impl Isotropic {
     pub fn new(albedo: Color) -> Self {
-        Self { tex: Arc::new(SolidColor::new(albedo)) }
+        Self { tex: make_tex(SolidColor::new(albedo)) }
     }
 
-    pub fn from_texture(tex: Arc<dyn Texture + Send + Sync>) -> Self {
+    pub fn from_texture(tex: TextureRef) -> Self {
         Self { tex }
     }
 }
@@ -172,7 +178,7 @@ impl Material for Isotropic {
     fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
         Some(ScatterRecord {
             attenuation: self.tex.value(rec.u, rec.v, rec.p),
-            pdf_ptr: Some(Arc::new(SpherePdf)),
+            pdf_ptr: Some(make_pdf(SpherePdf)),
             skip_pdf: false,
             skip_pdf_ray: Ray::new_with_time(rec.p, Vec3::new(1.0, 0.0, 0.0), r_in.time()),
         })
@@ -185,3 +191,83 @@ impl Material for Isotropic {
 
 pub struct EmptyMaterial;
 impl Material for EmptyMaterial {}
+
+pub enum MaterialObject {
+    Lambertian(Lambertian),
+    Metal(Metal),
+    Dielectric(Dielectric),
+    DiffuseLight(DiffuseLight),
+    Isotropic(Isotropic),
+    EmptyMaterial(EmptyMaterial),
+}
+
+impl From<Lambertian> for MaterialObject {
+    fn from(value: Lambertian) -> Self {
+        Self::Lambertian(value)
+    }
+}
+
+impl From<Metal> for MaterialObject {
+    fn from(value: Metal) -> Self {
+        Self::Metal(value)
+    }
+}
+
+impl From<Dielectric> for MaterialObject {
+    fn from(value: Dielectric) -> Self {
+        Self::Dielectric(value)
+    }
+}
+
+impl From<DiffuseLight> for MaterialObject {
+    fn from(value: DiffuseLight) -> Self {
+        Self::DiffuseLight(value)
+    }
+}
+
+impl From<Isotropic> for MaterialObject {
+    fn from(value: Isotropic) -> Self {
+        Self::Isotropic(value)
+    }
+}
+
+impl From<EmptyMaterial> for MaterialObject {
+    fn from(value: EmptyMaterial) -> Self {
+        Self::EmptyMaterial(value)
+    }
+}
+
+impl MaterialObject {
+    pub fn emitted(&self, r_in: &Ray, rec: &HitRecord, u: f64, v: f64, p: Point3) -> Color {
+        match self {
+            MaterialObject::Lambertian(mat) => mat.emitted(r_in, rec, u, v, p),
+            MaterialObject::Metal(mat) => mat.emitted(r_in, rec, u, v, p),
+            MaterialObject::Dielectric(mat) => mat.emitted(r_in, rec, u, v, p),
+            MaterialObject::DiffuseLight(mat) => mat.emitted(r_in, rec, u, v, p),
+            MaterialObject::Isotropic(mat) => mat.emitted(r_in, rec, u, v, p),
+            MaterialObject::EmptyMaterial(mat) => mat.emitted(r_in, rec, u, v, p),
+        }
+    }
+
+    pub fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
+        match self {
+            MaterialObject::Lambertian(mat) => mat.scatter(r_in, rec),
+            MaterialObject::Metal(mat) => mat.scatter(r_in, rec),
+            MaterialObject::Dielectric(mat) => mat.scatter(r_in, rec),
+            MaterialObject::DiffuseLight(mat) => mat.scatter(r_in, rec),
+            MaterialObject::Isotropic(mat) => mat.scatter(r_in, rec),
+            MaterialObject::EmptyMaterial(mat) => mat.scatter(r_in, rec),
+        }
+    }
+
+    pub fn scattering_pdf(&self, r_in: &Ray, rec: &HitRecord, scattered: &Ray) -> f64 {
+        match self {
+            MaterialObject::Lambertian(mat) => mat.scattering_pdf(r_in, rec, scattered),
+            MaterialObject::Metal(mat) => mat.scattering_pdf(r_in, rec, scattered),
+            MaterialObject::Dielectric(mat) => mat.scattering_pdf(r_in, rec, scattered),
+            MaterialObject::DiffuseLight(mat) => mat.scattering_pdf(r_in, rec, scattered),
+            MaterialObject::Isotropic(mat) => mat.scattering_pdf(r_in, rec, scattered),
+            MaterialObject::EmptyMaterial(mat) => mat.scattering_pdf(r_in, rec, scattered),
+        }
+    }
+}

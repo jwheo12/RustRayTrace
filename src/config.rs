@@ -49,9 +49,9 @@ impl RenderOverrides {
 // };
 pub const OVERRIDES: RenderOverrides = RenderOverrides {
     aspect_ratio: None,
-    image_width: Some(1080),
-    samples_per_pixel: Some(1000),
-    max_depth: Some(50),
+    image_width: Some(2160),
+    samples_per_pixel: Some(5000),
+    max_depth: Some(100),
     vfov: None,
     lookfrom: None,
     lookat: None,

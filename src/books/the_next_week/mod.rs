@@ -16,18 +16,16 @@ mod sphere;
 mod texture;
 mod vec3;
 
-use std::sync::Arc;
-
 use bvh::BvhNode;
 use camera::Camera;
 use constant_medium::ConstantMedium;
 use hittable::{make_ref, RotateY, Translate};
 use hittable_list::HittableList;
-use material::{Dielectric, DiffuseLight, Lambertian, Metal};
+use material::{make_mat, Dielectric, DiffuseLight, Lambertian, Metal};
 use quad::{make_box, Quad};
 use rtweekend::random_double;
 use sphere::Sphere;
-use texture::{CheckerTexture, ImageTexture, NoiseTexture};
+use texture::{make_tex, CheckerTexture, ImageTexture, NoiseTexture};
 use vec3::{Color, Point3, Vec3};
 
 fn apply_overrides(cam: &mut Camera) {
@@ -85,7 +83,7 @@ pub fn run(scene: Option<i32>) {
 fn bouncing_spheres() {
     let mut world = HittableList::new();
 
-    let checker = Arc::new(CheckerTexture::from_colors(
+    let checker = make_tex(CheckerTexture::from_colors(
         0.32,
         Color::new(0.2, 0.3, 0.1),
         Color::new(0.9, 0.9, 0.9),
@@ -94,7 +92,7 @@ fn bouncing_spheres() {
     world.add(make_ref(Sphere::new(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
-        Arc::new(Lambertian::from_texture(checker.clone())),
+        make_mat(Lambertian::from_texture(checker.clone())),
     )));
 
     for a in -11..11 {
@@ -109,29 +107,29 @@ fn bouncing_spheres() {
             if (center - Point3::new(4.0, 0.2, 0.0)).length() > 0.9 {
                 if choose_mat < 0.8 {
                     let albedo = Color::random() * Color::random();
-                    let sphere_material = Arc::new(Lambertian::new(albedo));
+                    let sphere_material = make_mat(Lambertian::new(albedo));
                     let center2 = center + Vec3::new(0.0, random_double() * 0.5, 0.0);
                     world.add(make_ref(Sphere::new_moving(center, center2, 0.2, sphere_material)));
                 } else if choose_mat < 0.95 {
                     let albedo = Color::random_range(0.5, 1.0);
                     let fuzz = random_double() * 0.5;
-                    let sphere_material = Arc::new(Metal::new(albedo, fuzz));
+                    let sphere_material = make_mat(Metal::new(albedo, fuzz));
                     world.add(make_ref(Sphere::new(center, 0.2, sphere_material)));
                 } else {
-                    let sphere_material = Arc::new(Dielectric::new(1.5));
+                    let sphere_material = make_mat(Dielectric::new(1.5));
                     world.add(make_ref(Sphere::new(center, 0.2, sphere_material)));
                 }
             }
         }
     }
 
-    let material1 = Arc::new(Dielectric::new(1.5));
+    let material1 = make_mat(Dielectric::new(1.5));
     world.add(make_ref(Sphere::new(Point3::new(0.0, 1.0, 0.0), 1.0, material1)));
 
-    let material2 = Arc::new(Lambertian::new(Color::new(0.4, 0.2, 0.1)));
+    let material2 = make_mat(Lambertian::new(Color::new(0.4, 0.2, 0.1)));
     world.add(make_ref(Sphere::new(Point3::new(-4.0, 1.0, 0.0), 1.0, material2)));
 
-    let material3 = Arc::new(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
+    let material3 = make_mat(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
     world.add(make_ref(Sphere::new(Point3::new(4.0, 1.0, 0.0), 1.0, material3)));
 
     let world = BvhNode::new(world);
@@ -159,7 +157,7 @@ fn bouncing_spheres() {
 fn checkered_spheres() {
     let mut world = HittableList::new();
 
-    let checker = Arc::new(CheckerTexture::from_colors(
+    let checker = make_tex(CheckerTexture::from_colors(
         0.32,
         Color::new(0.2, 0.3, 0.1),
         Color::new(0.9, 0.9, 0.9),
@@ -168,12 +166,12 @@ fn checkered_spheres() {
     world.add(make_ref(Sphere::new(
         Point3::new(0.0, -10.0, 0.0),
         10.0,
-        Arc::new(Lambertian::from_texture(checker.clone())),
+        make_mat(Lambertian::from_texture(checker.clone())),
     )));
     world.add(make_ref(Sphere::new(
         Point3::new(0.0, 10.0, 0.0),
         10.0,
-        Arc::new(Lambertian::from_texture(checker.clone())),
+        make_mat(Lambertian::from_texture(checker.clone())),
     )));
 
     let mut cam = Camera::default();
@@ -196,8 +194,8 @@ fn checkered_spheres() {
 }
 
 fn earth() {
-    let earth_texture = Arc::new(ImageTexture::new("earthmap.jpg"));
-    let earth_surface = Arc::new(Lambertian::from_texture(earth_texture));
+    let earth_texture = make_tex(ImageTexture::new("earthmap.jpg"));
+    let earth_surface = make_mat(Lambertian::from_texture(earth_texture));
     let globe = make_ref(Sphere::new(Point3::new(0.0, 0.0, 0.0), 2.0, earth_surface));
 
     let world = HittableList::from(globe);
@@ -224,16 +222,16 @@ fn earth() {
 fn perlin_spheres() {
     let mut world = HittableList::new();
 
-    let pertext = Arc::new(NoiseTexture::new(4.0));
+    let pertext = make_tex(NoiseTexture::new(4.0));
     world.add(make_ref(Sphere::new(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
-        Arc::new(Lambertian::from_texture(pertext.clone())),
+        make_mat(Lambertian::from_texture(pertext.clone())),
     )));
     world.add(make_ref(Sphere::new(
         Point3::new(0.0, 2.0, 0.0),
         2.0,
-        Arc::new(Lambertian::from_texture(pertext.clone())),
+        make_mat(Lambertian::from_texture(pertext.clone())),
     )));
 
     let mut cam = Camera::default();
@@ -258,11 +256,11 @@ fn perlin_spheres() {
 fn quads() {
     let mut world = HittableList::new();
 
-    let left_red = Arc::new(Lambertian::new(Color::new(1.0, 0.2, 0.2)));
-    let back_green = Arc::new(Lambertian::new(Color::new(0.2, 1.0, 0.2)));
-    let right_blue = Arc::new(Lambertian::new(Color::new(0.2, 0.2, 1.0)));
-    let upper_orange = Arc::new(Lambertian::new(Color::new(1.0, 0.5, 0.0)));
-    let lower_teal = Arc::new(Lambertian::new(Color::new(0.2, 0.8, 0.8)));
+    let left_red = make_mat(Lambertian::new(Color::new(1.0, 0.2, 0.2)));
+    let back_green = make_mat(Lambertian::new(Color::new(0.2, 1.0, 0.2)));
+    let right_blue = make_mat(Lambertian::new(Color::new(0.2, 0.2, 1.0)));
+    let upper_orange = make_mat(Lambertian::new(Color::new(1.0, 0.5, 0.0)));
+    let lower_teal = make_mat(Lambertian::new(Color::new(0.2, 0.8, 0.8)));
 
     world.add(make_ref(Quad::new(
         Point3::new(-3.0, -2.0, 5.0),
@@ -317,19 +315,19 @@ fn quads() {
 fn simple_light() {
     let mut world = HittableList::new();
 
-    let pertext = Arc::new(NoiseTexture::new(4.0));
+    let pertext = make_tex(NoiseTexture::new(4.0));
     world.add(make_ref(Sphere::new(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
-        Arc::new(Lambertian::from_texture(pertext.clone())),
+        make_mat(Lambertian::from_texture(pertext.clone())),
     )));
     world.add(make_ref(Sphere::new(
         Point3::new(0.0, 2.0, 0.0),
         2.0,
-        Arc::new(Lambertian::from_texture(pertext.clone())),
+        make_mat(Lambertian::from_texture(pertext.clone())),
     )));
 
-    let difflight = Arc::new(DiffuseLight::new(Color::new(4.0, 4.0, 4.0)));
+    let difflight = make_mat(DiffuseLight::new(Color::new(4.0, 4.0, 4.0)));
     world.add(make_ref(Sphere::new(Point3::new(0.0, 7.0, 0.0), 2.0, difflight.clone())));
     world.add(make_ref(Quad::new(
         Point3::new(3.0, 1.0, -2.0),
@@ -360,10 +358,10 @@ fn simple_light() {
 fn cornell_box() {
     let mut world = HittableList::new();
 
-    let red = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
-    let white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
-    let green = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
-    let light = Arc::new(DiffuseLight::new(Color::new(15.0, 15.0, 15.0)));
+    let red = make_mat(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
+    let white = make_mat(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let green = make_mat(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
+    let light = make_mat(DiffuseLight::new(Color::new(15.0, 15.0, 15.0)));
 
     world.add(make_ref(Quad::new(
         Point3::new(555.0, 0.0, 0.0),
@@ -434,10 +432,10 @@ fn cornell_box() {
 fn cornell_smoke() {
     let mut world = HittableList::new();
 
-    let red = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
-    let white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
-    let green = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
-    let light = Arc::new(DiffuseLight::new(Color::new(7.0, 7.0, 7.0)));
+    let red = make_mat(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
+    let white = make_mat(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let green = make_mat(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
+    let light = make_mat(DiffuseLight::new(Color::new(7.0, 7.0, 7.0)));
 
     world.add(make_ref(Quad::new(
         Point3::new(555.0, 0.0, 0.0),
@@ -508,7 +506,7 @@ fn cornell_smoke() {
 
 fn final_scene(image_width: i32, samples_per_pixel: i32, max_depth: i32) {
     let mut boxes1 = HittableList::new();
-    let ground = Arc::new(Lambertian::new(Color::new(0.48, 0.83, 0.53)));
+    let ground = make_mat(Lambertian::new(Color::new(0.48, 0.83, 0.53)));
 
     let boxes_per_side = 20;
     for i in 0..boxes_per_side {
@@ -532,7 +530,7 @@ fn final_scene(image_width: i32, samples_per_pixel: i32, max_depth: i32) {
     let mut world = HittableList::new();
     world.add(make_ref(BvhNode::new(boxes1)));
 
-    let light = Arc::new(DiffuseLight::new(Color::new(7.0, 7.0, 7.0)));
+    let light = make_mat(DiffuseLight::new(Color::new(7.0, 7.0, 7.0)));
     world.add(make_ref(Quad::new(
         Point3::new(123.0, 554.0, 147.0),
         Vec3::new(300.0, 0.0, 0.0),
@@ -542,25 +540,25 @@ fn final_scene(image_width: i32, samples_per_pixel: i32, max_depth: i32) {
 
     let center1 = Point3::new(400.0, 400.0, 200.0);
     let center2 = center1 + Vec3::new(30.0, 0.0, 0.0);
-    let sphere_material = Arc::new(Lambertian::new(Color::new(0.7, 0.3, 0.1)));
+    let sphere_material = make_mat(Lambertian::new(Color::new(0.7, 0.3, 0.1)));
     world.add(make_ref(Sphere::new_moving(center1, center2, 50.0, sphere_material)));
 
     world.add(make_ref(Sphere::new(
         Point3::new(260.0, 150.0, 45.0),
         50.0,
-        Arc::new(Dielectric::new(1.5)),
+        make_mat(Dielectric::new(1.5)),
     )));
 
     world.add(make_ref(Sphere::new(
         Point3::new(0.0, 150.0, 145.0),
         50.0,
-        Arc::new(Metal::new(Color::new(0.8, 0.8, 0.9), 1.0)),
+        make_mat(Metal::new(Color::new(0.8, 0.8, 0.9), 1.0)),
     )));
 
     let boundary = make_ref(Sphere::new(
         Point3::new(360.0, 150.0, 145.0),
         70.0,
-        Arc::new(Dielectric::new(1.5)),
+        make_mat(Dielectric::new(1.5)),
     ));
     world.add(boundary.clone());
     world.add(make_ref(ConstantMedium::from_color(
@@ -572,7 +570,7 @@ fn final_scene(image_width: i32, samples_per_pixel: i32, max_depth: i32) {
     let boundary = make_ref(Sphere::new(
         Point3::new(0.0, 0.0, 0.0),
         5000.0,
-        Arc::new(Dielectric::new(1.5)),
+        make_mat(Dielectric::new(1.5)),
     ));
     world.add(make_ref(ConstantMedium::from_color(
         boundary,
@@ -580,18 +578,18 @@ fn final_scene(image_width: i32, samples_per_pixel: i32, max_depth: i32) {
         Color::new(1.0, 1.0, 1.0),
     )));
 
-    let emat = Arc::new(Lambertian::from_texture(Arc::new(ImageTexture::new("earthmap.jpg"))));
+    let emat = make_mat(Lambertian::from_texture(make_tex(ImageTexture::new("earthmap.jpg"))));
     world.add(make_ref(Sphere::new(Point3::new(400.0, 200.0, 400.0), 100.0, emat)));
 
-    let pertext = Arc::new(NoiseTexture::new(0.2));
+    let pertext = make_tex(NoiseTexture::new(0.2));
     world.add(make_ref(Sphere::new(
         Point3::new(220.0, 280.0, 300.0),
         80.0,
-        Arc::new(Lambertian::from_texture(pertext)),
+        make_mat(Lambertian::from_texture(pertext)),
     )));
 
     let mut boxes2 = HittableList::new();
-    let white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let white = make_mat(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
     let ns = 1000;
     for _ in 0..ns {
         boxes2.add(make_ref(Sphere::new(

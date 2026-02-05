@@ -1,21 +1,19 @@
-use std::sync::Arc;
-
 use super::aabb::Aabb;
 use super::hittable::{HitRecord, Hittable};
 use super::interval::Interval;
-use super::material::Material;
+use super::material::MaterialRef;
 use super::ray::Ray;
 use super::vec3::{dot, Point3, Vec3};
 
 pub struct Sphere {
     center: Point3,
     radius: f64,
-    mat: Arc<dyn Material + Send + Sync>,
+    mat: MaterialRef,
     bbox: Aabb,
 }
 
 impl Sphere {
-    pub fn new(center: Point3, radius: f64, mat: Arc<dyn Material + Send + Sync>) -> Self {
+    pub fn new(center: Point3, radius: f64, mat: MaterialRef) -> Self {
         let r = radius.max(0.0);
         let rvec = Vec3::new(r, r, r);
         let bbox = Aabb::from_points(center - rvec, center + rvec);

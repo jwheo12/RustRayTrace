@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::hittable::HitRecord;
 use super::ray::Ray;
 use super::rtweekend::random_double;
-use super::texture::{SolidColor, Texture};
+use super::texture::{make_tex, SolidColor, TextureRef};
 use super::vec3::{
     dot, random_unit_vector, reflect, refract, unit_vector, Color, Point3,
 };
@@ -18,16 +18,22 @@ pub trait Material: Send + Sync {
     }
 }
 
+pub type MaterialRef = Arc<MaterialObject>;
+
+pub fn make_mat<T: Into<MaterialObject>>(material: T) -> MaterialRef {
+    Arc::new(material.into())
+}
+
 pub struct Lambertian {
-    tex: Arc<dyn Texture + Send + Sync>,
+    tex: TextureRef,
 }
 
 impl Lambertian {
     pub fn new(albedo: Color) -> Self {
-        Self { tex: Arc::new(SolidColor::new(albedo)) }
+        Self { tex: make_tex(SolidColor::new(albedo)) }
     }
 
-    pub fn from_texture(tex: Arc<dyn Texture + Send + Sync>) -> Self {
+    pub fn from_texture(tex: TextureRef) -> Self {
         Self { tex }
     }
 }
@@ -108,16 +114,16 @@ impl Material for Dielectric {
 }
 
 pub struct DiffuseLight {
-    tex: Arc<dyn Texture + Send + Sync>,
+    tex: TextureRef,
 }
 
 impl DiffuseLight {
     pub fn new(emit: Color) -> Self {
-        Self { tex: Arc::new(SolidColor::new(emit)) }
+        Self { tex: make_tex(SolidColor::new(emit)) }
     }
 
     #[allow(dead_code)]
-    pub fn from_texture(tex: Arc<dyn Texture + Send + Sync>) -> Self {
+    pub fn from_texture(tex: TextureRef) -> Self {
         Self { tex }
     }
 }
@@ -129,16 +135,16 @@ impl Material for DiffuseLight {
 }
 
 pub struct Isotropic {
-    tex: Arc<dyn Texture + Send + Sync>,
+    tex: TextureRef,
 }
 
 impl Isotropic {
     pub fn new(albedo: Color) -> Self {
-        Self { tex: Arc::new(SolidColor::new(albedo)) }
+        Self { tex: make_tex(SolidColor::new(albedo)) }
     }
 
     #[allow(dead_code)]
-    pub fn from_texture(tex: Arc<dyn Texture + Send + Sync>) -> Self {
+    pub fn from_texture(tex: TextureRef) -> Self {
         Self { tex }
     }
 }
@@ -148,5 +154,65 @@ impl Material for Isotropic {
         let scattered = Ray::new_with_time(rec.p, random_unit_vector(), r_in.time());
         let attenuation = self.tex.value(rec.u, rec.v, rec.p);
         Some((attenuation, scattered))
+    }
+}
+
+pub enum MaterialObject {
+    Lambertian(Lambertian),
+    Metal(Metal),
+    Dielectric(Dielectric),
+    DiffuseLight(DiffuseLight),
+    Isotropic(Isotropic),
+}
+
+impl From<Lambertian> for MaterialObject {
+    fn from(value: Lambertian) -> Self {
+        Self::Lambertian(value)
+    }
+}
+
+impl From<Metal> for MaterialObject {
+    fn from(value: Metal) -> Self {
+        Self::Metal(value)
+    }
+}
+
+impl From<Dielectric> for MaterialObject {
+    fn from(value: Dielectric) -> Self {
+        Self::Dielectric(value)
+    }
+}
+
+impl From<DiffuseLight> for MaterialObject {
+    fn from(value: DiffuseLight) -> Self {
+        Self::DiffuseLight(value)
+    }
+}
+
+impl From<Isotropic> for MaterialObject {
+    fn from(value: Isotropic) -> Self {
+        Self::Isotropic(value)
+    }
+}
+
+impl MaterialObject {
+    pub fn emitted(&self, u: f64, v: f64, p: Point3) -> Color {
+        match self {
+            MaterialObject::Lambertian(mat) => mat.emitted(u, v, p),
+            MaterialObject::Metal(mat) => mat.emitted(u, v, p),
+            MaterialObject::Dielectric(mat) => mat.emitted(u, v, p),
+            MaterialObject::DiffuseLight(mat) => mat.emitted(u, v, p),
+            MaterialObject::Isotropic(mat) => mat.emitted(u, v, p),
+        }
+    }
+
+    pub fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
+        match self {
+            MaterialObject::Lambertian(mat) => mat.scatter(r_in, rec),
+            MaterialObject::Metal(mat) => mat.scatter(r_in, rec),
+            MaterialObject::Dielectric(mat) => mat.scatter(r_in, rec),
+            MaterialObject::DiffuseLight(mat) => mat.scatter(r_in, rec),
+            MaterialObject::Isotropic(mat) => mat.scatter(r_in, rec),
+        }
     }
 }

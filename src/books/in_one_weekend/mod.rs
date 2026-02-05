@@ -11,13 +11,11 @@ mod rtweekend;
 mod sphere;
 mod vec3;
 
-use std::sync::Arc;
-
 use bvh::BvhNode;
 use camera::Camera;
 use hittable::make_ref;
 use hittable_list::HittableList;
-use material::{Dielectric, Lambertian, Metal};
+use material::{make_mat, Dielectric, Lambertian, Metal};
 use rtweekend::random_double;
 use sphere::Sphere;
 use vec3::{Color, Point3, Vec3};
@@ -59,8 +57,7 @@ fn apply_overrides(cam: &mut Camera) {
 pub fn run(_scene: Option<i32>) {
     let mut world = HittableList::new();
 
-    let ground_material: Arc<dyn material::Material + Send + Sync> =
-        Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
+    let ground_material = make_mat(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
     world.add(make_ref(Sphere::new(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
@@ -77,20 +74,20 @@ pub fn run(_scene: Option<i32>) {
             );
 
             if (center - Point3::new(4.0, 0.2, 0.0)).length() > 0.9 {
-                let sphere_material: Arc<dyn material::Material + Send + Sync>;
+                let sphere_material;
 
                 if choose_mat < 0.8 {
                     // diffuse
                     let albedo = Color::random() * Color::random();
-                    sphere_material = Arc::new(Lambertian::new(albedo));
+                    sphere_material = make_mat(Lambertian::new(albedo));
                 } else if choose_mat < 0.95 {
                     // metal
                     let albedo = Color::random_range(0.5, 1.0);
                     let fuzz = random_double() * 0.5;
-                    sphere_material = Arc::new(Metal::new(albedo, fuzz));
+                    sphere_material = make_mat(Metal::new(albedo, fuzz));
                 } else {
                     // glass
-                    sphere_material = Arc::new(Dielectric::new(1.5));
+                    sphere_material = make_mat(Dielectric::new(1.5));
                 }
 
                 world.add(make_ref(Sphere::new(center, 0.2, sphere_material)));
@@ -98,15 +95,13 @@ pub fn run(_scene: Option<i32>) {
         }
     }
 
-    let material1: Arc<dyn material::Material + Send + Sync> = Arc::new(Dielectric::new(1.5));
+    let material1 = make_mat(Dielectric::new(1.5));
     world.add(make_ref(Sphere::new(Point3::new(0.0, 1.0, 0.0), 1.0, material1)));
 
-    let material2: Arc<dyn material::Material + Send + Sync> =
-        Arc::new(Lambertian::new(Color::new(0.4, 0.2, 0.1)));
+    let material2 = make_mat(Lambertian::new(Color::new(0.4, 0.2, 0.1)));
     world.add(make_ref(Sphere::new(Point3::new(-4.0, 1.0, 0.0), 1.0, material2)));
 
-    let material3: Arc<dyn material::Material + Send + Sync> =
-        Arc::new(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
+    let material3 = make_mat(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
     world.add(make_ref(Sphere::new(Point3::new(4.0, 1.0, 0.0), 1.0, material3)));
 
     let mut cam = Camera::default();

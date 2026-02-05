@@ -1,9 +1,7 @@
-use std::sync::Arc;
-
 use super::aabb::Aabb;
 use super::hittable::{HitRecord, Hittable};
 use super::interval::Interval;
-use super::material::Material;
+use super::material::MaterialRef;
 use super::onb::Onb;
 use super::ray::Ray;
 use super::rtweekend::{random_double, INFINITY, PI};
@@ -12,12 +10,12 @@ use super::vec3::{dot, Point3, Vec3};
 pub struct Sphere {
     center: Ray,
     radius: f64,
-    mat: Arc<dyn Material + Send + Sync>,
+    mat: MaterialRef,
     bbox: Aabb,
 }
 
 impl Sphere {
-    pub fn new(static_center: Point3, radius: f64, mat: Arc<dyn Material + Send + Sync>) -> Self {
+    pub fn new(static_center: Point3, radius: f64, mat: MaterialRef) -> Self {
         let rvec = Vec3::new(radius, radius, radius);
         let bbox = Aabb::from_points(static_center - rvec, static_center + rvec);
         Self {
@@ -32,7 +30,7 @@ impl Sphere {
         center1: Point3,
         center2: Point3,
         radius: f64,
-        mat: Arc<dyn Material + Send + Sync>,
+        mat: MaterialRef,
     ) -> Self {
         let rvec = Vec3::new(radius, radius, radius);
         let box1 = Aabb::from_points(center1 - rvec, center1 + rvec);

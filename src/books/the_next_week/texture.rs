@@ -9,6 +9,12 @@ pub trait Texture: Send + Sync {
     fn value(&self, u: f64, v: f64, p: Point3) -> Color;
 }
 
+pub type TextureRef = Arc<TextureObject>;
+
+pub fn make_tex<T: Into<TextureObject>>(texture: T) -> TextureRef {
+    Arc::new(texture.into())
+}
+
 pub struct SolidColor {
     albedo: Color,
 }
@@ -32,15 +38,15 @@ impl Texture for SolidColor {
 
 pub struct CheckerTexture {
     inv_scale: f64,
-    even: Arc<dyn Texture + Send + Sync>,
-    odd: Arc<dyn Texture + Send + Sync>,
+    even: TextureRef,
+    odd: TextureRef,
 }
 
 impl CheckerTexture {
     pub fn new(
         scale: f64,
-        even: Arc<dyn Texture + Send + Sync>,
-        odd: Arc<dyn Texture + Send + Sync>,
+        even: TextureRef,
+        odd: TextureRef,
     ) -> Self {
         Self { inv_scale: 1.0 / scale, even, odd }
     }
@@ -48,8 +54,8 @@ impl CheckerTexture {
     pub fn from_colors(scale: f64, c1: Color, c2: Color) -> Self {
         Self::new(
             scale,
-            Arc::new(SolidColor::new(c1)),
-            Arc::new(SolidColor::new(c2)),
+            make_tex(SolidColor::new(c1)),
+            make_tex(SolidColor::new(c2)),
         )
     }
 }
@@ -116,5 +122,47 @@ impl NoiseTexture {
 impl Texture for NoiseTexture {
     fn value(&self, _u: f64, _v: f64, p: Point3) -> Color {
         Color::new(0.5, 0.5, 0.5) * (1.0 + (self.scale * p.z() + 10.0 * self.noise.turb(p, 7)).sin())
+    }
+}
+
+pub enum TextureObject {
+    SolidColor(SolidColor),
+    CheckerTexture(CheckerTexture),
+    ImageTexture(ImageTexture),
+    NoiseTexture(NoiseTexture),
+}
+
+impl From<SolidColor> for TextureObject {
+    fn from(value: SolidColor) -> Self {
+        Self::SolidColor(value)
+    }
+}
+
+impl From<CheckerTexture> for TextureObject {
+    fn from(value: CheckerTexture) -> Self {
+        Self::CheckerTexture(value)
+    }
+}
+
+impl From<ImageTexture> for TextureObject {
+    fn from(value: ImageTexture) -> Self {
+        Self::ImageTexture(value)
+    }
+}
+
+impl From<NoiseTexture> for TextureObject {
+    fn from(value: NoiseTexture) -> Self {
+        Self::NoiseTexture(value)
+    }
+}
+
+impl TextureObject {
+    pub fn value(&self, u: f64, v: f64, p: Point3) -> Color {
+        match self {
+            TextureObject::SolidColor(texture) => texture.value(u, v, p),
+            TextureObject::CheckerTexture(texture) => texture.value(u, v, p),
+            TextureObject::ImageTexture(texture) => texture.value(u, v, p),
+            TextureObject::NoiseTexture(texture) => texture.value(u, v, p),
+        }
     }
 }

@@ -10,6 +10,12 @@ pub trait Pdf: Send + Sync {
     fn generate(&self) -> Vec3;
 }
 
+pub type PdfRef = Arc<PdfObject>;
+
+pub fn make_pdf<T: Into<PdfObject>>(pdf: T) -> PdfRef {
+    Arc::new(pdf.into())
+}
+
 pub struct SpherePdf;
 
 impl Pdf for SpherePdf {
@@ -69,12 +75,12 @@ impl Pdf for HittablePdf {
 }
 
 pub struct MixturePdf {
-    p0: Arc<dyn Pdf + Send + Sync>,
-    p1: Arc<dyn Pdf + Send + Sync>,
+    p0: PdfRef,
+    p1: PdfRef,
 }
 
 impl MixturePdf {
-    pub fn new(p0: Arc<dyn Pdf + Send + Sync>, p1: Arc<dyn Pdf + Send + Sync>) -> Self {
+    pub fn new(p0: PdfRef, p1: PdfRef) -> Self {
         Self { p0, p1 }
     }
 }
@@ -89,6 +95,57 @@ impl Pdf for MixturePdf {
             self.p0.generate()
         } else {
             self.p1.generate()
+        }
+    }
+}
+
+pub enum PdfObject {
+    SpherePdf(SpherePdf),
+    CosinePdf(CosinePdf),
+    HittablePdf(HittablePdf),
+    MixturePdf(MixturePdf),
+}
+
+impl From<SpherePdf> for PdfObject {
+    fn from(value: SpherePdf) -> Self {
+        Self::SpherePdf(value)
+    }
+}
+
+impl From<CosinePdf> for PdfObject {
+    fn from(value: CosinePdf) -> Self {
+        Self::CosinePdf(value)
+    }
+}
+
+impl From<HittablePdf> for PdfObject {
+    fn from(value: HittablePdf) -> Self {
+        Self::HittablePdf(value)
+    }
+}
+
+impl From<MixturePdf> for PdfObject {
+    fn from(value: MixturePdf) -> Self {
+        Self::MixturePdf(value)
+    }
+}
+
+impl PdfObject {
+    pub fn value(&self, direction: Vec3) -> f64 {
+        match self {
+            PdfObject::SpherePdf(pdf) => pdf.value(direction),
+            PdfObject::CosinePdf(pdf) => pdf.value(direction),
+            PdfObject::HittablePdf(pdf) => pdf.value(direction),
+            PdfObject::MixturePdf(pdf) => pdf.value(direction),
+        }
+    }
+
+    pub fn generate(&self) -> Vec3 {
+        match self {
+            PdfObject::SpherePdf(pdf) => pdf.generate(),
+            PdfObject::CosinePdf(pdf) => pdf.generate(),
+            PdfObject::HittablePdf(pdf) => pdf.generate(),
+            PdfObject::MixturePdf(pdf) => pdf.generate(),
         }
     }
 }
