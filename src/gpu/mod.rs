@@ -20,8 +20,8 @@ pub(crate) struct CameraUniform {
     u: [f32; 4],
     v: [f32; 4],
     background: [f32; 4],
-    params_f: [f32; 4],
-    params_u: [u32; 4],
+    pub(crate) params_f: [f32; 4],
+    pub(crate) params_u: [u32; 4],
 }
 
 #[repr(C)]

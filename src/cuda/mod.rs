@@ -2,7 +2,7 @@
 mod imp {
     use crate::gpu::{build_in_one_weekend_scene, CameraUniform, MaterialGpu, SphereGpu};
     use crate::render_io::write_ppm_from_accum;
-    use cudarc::driver::{CudaDevice, DeviceRepr, LaunchAsync};
+    use cudarc::driver::{CudaDevice, DeviceRepr, LaunchAsync, LaunchConfig};
     use cudarc::nvrtc::compile_ptx;
 
     const CUDA_SPP_PER_PASS: u32 = 256;
@@ -12,25 +12,26 @@ mod imp {
     unsafe impl DeviceRepr for MaterialGpu {}
 
     const CUDA_SOURCE: &str = r#"
+#include <math.h>
 extern "C" {
 struct float3 { float x; float y; float z; };
-struct float4 { float x; float y; float z; float w; };
-struct uint4 { unsigned int x; unsigned int y; unsigned int z; unsigned int w; };
+struct Float4 { float x; float y; float z; float w; };
+struct Uint4 { unsigned int x; unsigned int y; unsigned int z; unsigned int w; };
 
 struct Camera {
-    float4 origin;
-    float4 pixel00;
-    float4 pixel_delta_u;
-    float4 pixel_delta_v;
-    float4 u;
-    float4 v;
-    float4 background;
-    float4 params_f;
-    uint4 params_u;
+    Float4 origin;
+    Float4 pixel00;
+    Float4 pixel_delta_u;
+    Float4 pixel_delta_v;
+    Float4 u;
+    Float4 v;
+    Float4 background;
+    Float4 params_f;
+    Uint4 params_u;
 };
 
 struct Sphere {
-    float4 center_radius;
+    Float4 center_radius;
     unsigned int material_index;
     unsigned int _pad0;
     unsigned int _pad1;
@@ -38,7 +39,7 @@ struct Sphere {
 };
 
 struct Material {
-    float4 albedo_fuzz;
+    Float4 albedo_fuzz;
     unsigned int kind;
     float ref_idx;
     unsigned int _pad0;
@@ -63,11 +64,11 @@ __device__ __forceinline__ float3 make_float3(float x, float y, float z) {
     float3 v; v.x = x; v.y = y; v.z = z; return v;
 }
 
-__device__ __forceinline__ float4 make_float4(float x, float y, float z, float w) {
-    float4 v; v.x = x; v.y = y; v.z = z; v.w = w; return v;
+__device__ __forceinline__ Float4 make_float4(float x, float y, float z, float w) {
+    Float4 v; v.x = x; v.y = y; v.z = z; v.w = w; return v;
 }
 
-__device__ __forceinline__ float3 xyz(const float4& v) {
+__device__ __forceinline__ float3 xyz(const Float4& v) {
     return make_float3(v.x, v.y, v.z);
 }
 
@@ -308,7 +309,7 @@ __global__ void render(
     const Sphere* spheres,
     unsigned int sphere_count,
     const Material* materials,
-    float4* accum,
+    Float4* accum,
     unsigned int seed,
     unsigned int spp,
     unsigned int width,
@@ -331,7 +332,7 @@ __global__ void render(
     }
 
     unsigned int idx = y * width + x;
-    float4 prev = accum[idx];
+    Float4 prev = accum[idx];
     accum[idx] = make_float4(prev.x + color.x, prev.y + color.y, prev.z + color.z, prev.w + (float)spp);
 }
 } // extern "C"
@@ -344,12 +345,12 @@ __global__ void render(
 
     fn render(camera: CameraUniform, spheres: &[SphereGpu], materials: &[MaterialGpu]) -> Result<(), String> {
         let dev = CudaDevice::new(0).map_err(|e| format!("cuda init failed: {e:?}"))?;
-        let ptx = compile_ptx(CUDA_SOURCE, &["--std=c++14"]).map_err(|e| format!("nvrtc failed: {e:?}"))?;
-        let module = dev
-            .load_ptx(ptx, "pathtracer", &["render"])
+        let ptx = compile_ptx(CUDA_SOURCE).map_err(|e| format!("nvrtc failed: {e:?}"))?;
+        dev.load_ptx(ptx, "pathtracer", &["render"])
             .map_err(|e| format!("load_ptx failed: {e:?}"))?;
-        let func = module.get_func("render").map_err(|e| format!("get_func failed: {e:?}"))?;
-        let stream = dev.default_stream();
+        let func = dev
+            .get_func("pathtracer", "render")
+            .ok_or_else(|| "get_func failed: render not found".to_string())?;
 
         let width = camera.params_f[1] as u32;
         let height = camera.params_f[2] as u32;
@@ -367,6 +368,11 @@ __global__ void render(
         let block_y = 8u32;
         let grid_x = (width + block_x - 1) / block_x;
         let grid_y = (height + block_y - 1) / block_y;
+        let cfg = LaunchConfig {
+            grid_dim: (grid_x, grid_y, 1),
+            block_dim: (block_x, block_y, 1),
+            shared_mem_bytes: 0,
+        };
 
         for pass_index in 0..pass_count {
             let remaining = total_spp - pass_index * spp_per_pass;
@@ -374,8 +380,9 @@ __global__ void render(
             let seed = base_seed ^ ((pass_index as u32).wrapping_mul(0x9E3779B9));
 
             unsafe {
-                cudarc::driver::launch!(
-                    func<<<(grid_x, grid_y, 1), (block_x, block_y, 1), 0, stream>>>(
+                func.launch(
+                    cfg,
+                    (
                         camera,
                         &d_spheres,
                         spheres.len() as u32,
@@ -384,12 +391,12 @@ __global__ void render(
                         seed,
                         pass_spp,
                         width,
-                        height
-                    )
+                        height,
+                    ),
                 )
                 .map_err(|e| format!("kernel launch failed: {e:?}"))?;
             }
-            stream.synchronize().map_err(|e| format!("cuda sync failed: {e:?}"))?;
+            dev.synchronize().map_err(|e| format!("cuda sync failed: {e:?}"))?;
             let done = pass_index + 1;
             let pct = (done as f64 / pass_count as f64) * 100.0;
             eprint!("\rCUDA progress: {}/{} ({:.1}%)", done, pass_count, pct);
