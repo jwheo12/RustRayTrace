@@ -3,7 +3,8 @@ mod imp {
     use crate::gpu::{build_in_one_weekend_scene, CameraUniform, MaterialGpu, SphereGpu};
     use crate::render_io::write_ppm_from_accum;
     use cudarc::driver::{CudaDevice, DeviceRepr, LaunchAsync, LaunchConfig};
-    use cudarc::nvrtc::compile_ptx;
+    use cudarc::nvrtc::{compile_ptx_with_opts, CompileOptions};
+    use std::env;
 
     const CUDA_SPP_PER_PASS: u32 = 256;
 
@@ -340,9 +341,39 @@ __global__ void render(
 
     fn render(camera: CameraUniform, spheres: &[SphereGpu], materials: &[MaterialGpu]) -> Result<(), String> {
         let dev = CudaDevice::new(0).map_err(|e| format!("cuda init failed: {e:?}"))?;
-        let ptx = compile_ptx(CUDA_SOURCE).map_err(|e| format!("nvrtc failed: {e:?}"))?;
+        let mut opts = CompileOptions::default();
+        if let Ok(raw_arch) = env::var("CUDA_ARCH") {
+            let trimmed = raw_arch.trim();
+            if !trimmed.is_empty() {
+                let arch = if trimmed.starts_with("compute_") {
+                    trimmed.to_string()
+                } else if trimmed.starts_with("sm_") {
+                    format!("compute_{}", &trimmed[3..])
+                } else if trimmed.chars().all(|c| c.is_ascii_digit()) {
+                    format!("compute_{trimmed}")
+                } else {
+                    trimmed.to_string()
+                };
+                opts.options.push(format!("--gpu-architecture={arch}"));
+            }
+        }
+        if let Ok(extra) = env::var("CUDA_NVRTC_OPTS") {
+            for opt in extra.split_whitespace() {
+                opts.options.push(opt.to_string());
+            }
+        }
+
+        let ptx = compile_ptx_with_opts(CUDA_SOURCE, opts).map_err(|e| format!("nvrtc failed: {e:?}"))?;
         dev.load_ptx(ptx, "pathtracer", &["render"])
-            .map_err(|e| format!("load_ptx failed: {e:?}"))?;
+            .map_err(|e| {
+                let mut msg = format!("load_ptx failed: {e:?}");
+                if msg.contains("UNSUPPORTED_PTX_VERSION") {
+                    msg.push_str(
+                        " (driver/toolkit mismatch: try older CUDA toolkit or set CUDA_ARCH=75/80 and a matching CUDA_HOME)",
+                    );
+                }
+                msg
+            })?;
         let func = dev
             .get_func("pathtracer", "render")
             .ok_or_else(|| "get_func failed: render not found".to_string())?;
