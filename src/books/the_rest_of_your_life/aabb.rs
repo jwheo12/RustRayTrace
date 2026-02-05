@@ -97,6 +97,13 @@ impl Aabb {
         }
     }
 
+    pub fn surface_area(&self) -> f64 {
+        let a = self.x.size();
+        let b = self.y.size();
+        let c = self.z.size();
+        2.0 * (a * b + a * c + b * c)
+    }
+
     fn pad_to_minimums(&mut self) {
         let delta = 0.0001;
         if self.x.size() < delta {
