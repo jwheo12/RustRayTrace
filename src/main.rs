@@ -61,15 +61,16 @@ fn main() {
                 Ok(()) => return,
                 Err(err) => {
                     eprintln!("CUDA render failed: {err}");
-                    eprintln!("Falling back to GPU.");
+                    return;
                 }
             }
         } else {
-            eprintln!("CUDA backend currently supports in_one_weekend only. Falling back to GPU.");
+            eprintln!("CUDA backend currently supports in_one_weekend only.");
+            return;
         }
     }
 
-    if backend == "gpu" || backend == "cuda" {
+    if backend == "gpu" {
         if matches!(book_key.as_str(), "inoneweekend" | "oneweekend" | "weekend") {
             match gpu::render_in_one_weekend() {
                 Ok(()) => return,

@@ -12,7 +12,6 @@ mod imp {
     unsafe impl DeviceRepr for MaterialGpu {}
 
     const CUDA_SOURCE: &str = r#"
-#include <math.h>
 extern "C" {
 struct float3 { float x; float y; float z; };
 struct Float4 { float x; float y; float z; float w; };
