@@ -380,7 +380,7 @@ __global__ void render(
             let seed = base_seed ^ ((pass_index as u32).wrapping_mul(0x9E3779B9));
 
             unsafe {
-                func.launch(
+                func.clone().launch(
                     cfg,
                     (
                         camera,
