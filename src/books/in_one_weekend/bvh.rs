@@ -1,15 +1,14 @@
 use std::cmp::Ordering;
-use std::sync::Arc;
 
 use super::aabb::Aabb;
-use super::hittable::{HitRecord, Hittable};
+use super::hittable::{make_ref, HitRecord, Hittable, HittableRef};
 use super::hittable_list::HittableList;
 use super::interval::Interval;
 use super::ray::Ray;
 
 pub struct BvhNode {
-    left: Arc<dyn Hittable + Send + Sync>,
-    right: Arc<dyn Hittable + Send + Sync>,
+    left: HittableRef,
+    right: HittableRef,
     bbox: Aabb,
 }
 
@@ -19,7 +18,7 @@ impl BvhNode {
         Self::build(&mut objects)
     }
 
-    fn build(objects: &mut [Arc<dyn Hittable + Send + Sync>]) -> Self {
+    fn build(objects: &mut [HittableRef]) -> Self {
         let object_span = objects.len();
 
         let mut bbox = Aabb::EMPTY;
@@ -35,7 +34,7 @@ impl BvhNode {
             const NUM_BUCKETS: usize = 12;
 
             let axis = bbox.longest_axis();
-            let comparator = |a: &Arc<dyn Hittable + Send + Sync>, b: &Arc<dyn Hittable + Send + Sync>| {
+            let comparator = |a: &HittableRef, b: &HittableRef| {
                 let a_axis = a.bounding_box().axis_interval(axis);
                 let b_axis = b.bounding_box().axis_interval(axis);
                 a_axis.min.partial_cmp(&b_axis.min).unwrap_or(Ordering::Equal)
@@ -57,8 +56,8 @@ impl BvhNode {
             if (centroid_max - centroid_min).abs() < 1e-12 {
                 objects.sort_by(comparator);
                 let mid = object_span / 2;
-                let left: Arc<dyn Hittable + Send + Sync> = Arc::new(Self::build(&mut objects[..mid]));
-                let right: Arc<dyn Hittable + Send + Sync> = Arc::new(Self::build(&mut objects[mid..]));
+                let left = make_ref(Self::build(&mut objects[..mid]));
+                let right = make_ref(Self::build(&mut objects[mid..]));
                 (left, right)
             } else {
                 #[derive(Clone, Copy)]
@@ -119,8 +118,8 @@ impl BvhNode {
                 if !best_cost.is_finite() {
                     objects.sort_by(comparator);
                     let mid = object_span / 2;
-                    let left: Arc<dyn Hittable + Send + Sync> = Arc::new(Self::build(&mut objects[..mid]));
-                    let right: Arc<dyn Hittable + Send + Sync> = Arc::new(Self::build(&mut objects[mid..]));
+                    let left = make_ref(Self::build(&mut objects[..mid]));
+                    let right = make_ref(Self::build(&mut objects[mid..]));
                     (left, right)
                 } else {
                     let mut mid = 0usize;
@@ -141,12 +140,12 @@ impl BvhNode {
                     if mid == 0 || mid == object_span {
                         objects.sort_by(comparator);
                         let mid = object_span / 2;
-                        let left: Arc<dyn Hittable + Send + Sync> = Arc::new(Self::build(&mut objects[..mid]));
-                        let right: Arc<dyn Hittable + Send + Sync> = Arc::new(Self::build(&mut objects[mid..]));
+                        let left = make_ref(Self::build(&mut objects[..mid]));
+                        let right = make_ref(Self::build(&mut objects[mid..]));
                         (left, right)
                     } else {
-                        let left: Arc<dyn Hittable + Send + Sync> = Arc::new(Self::build(&mut objects[..mid]));
-                        let right: Arc<dyn Hittable + Send + Sync> = Arc::new(Self::build(&mut objects[mid..]));
+                        let left = make_ref(Self::build(&mut objects[..mid]));
+                        let right = make_ref(Self::build(&mut objects[mid..]));
                         (left, right)
                     }
                 }

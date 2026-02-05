@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
 use super::aabb::Aabb;
+use super::bvh::BvhNode;
+use super::hittable_list::HittableList;
 use super::interval::Interval;
 use super::material::Material;
 use super::ray::Ray;
+use super::sphere::Sphere;
 use super::vec3::{dot, Point3, Vec3};
 
 pub struct HitRecord {
@@ -31,4 +34,52 @@ impl HitRecord {
 pub trait Hittable: Send + Sync {
     fn hit(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord>;
     fn bounding_box(&self) -> Aabb;
+}
+
+pub type HittableRef = Arc<HittableObject>;
+
+pub fn make_ref<T: Into<HittableObject>>(object: T) -> HittableRef {
+    Arc::new(object.into())
+}
+
+pub enum HittableObject {
+    Sphere(Sphere),
+    Bvh(BvhNode),
+    List(HittableList),
+}
+
+impl From<Sphere> for HittableObject {
+    fn from(value: Sphere) -> Self {
+        Self::Sphere(value)
+    }
+}
+
+impl From<BvhNode> for HittableObject {
+    fn from(value: BvhNode) -> Self {
+        Self::Bvh(value)
+    }
+}
+
+impl From<HittableList> for HittableObject {
+    fn from(value: HittableList) -> Self {
+        Self::List(value)
+    }
+}
+
+impl Hittable for HittableObject {
+    fn hit(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+        match self {
+            HittableObject::Sphere(object) => object.hit(r, ray_t),
+            HittableObject::Bvh(object) => object.hit(r, ray_t),
+            HittableObject::List(object) => object.hit(r, ray_t),
+        }
+    }
+
+    fn bounding_box(&self) -> Aabb {
+        match self {
+            HittableObject::Sphere(object) => object.bounding_box(),
+            HittableObject::Bvh(object) => object.bounding_box(),
+            HittableObject::List(object) => object.bounding_box(),
+        }
+    }
 }

@@ -15,6 +15,7 @@ use std::sync::Arc;
 
 use bvh::BvhNode;
 use camera::Camera;
+use hittable::make_ref;
 use hittable_list::HittableList;
 use material::{Dielectric, Lambertian, Metal};
 use rtweekend::random_double;
@@ -60,7 +61,7 @@ pub fn run(_scene: Option<i32>) {
 
     let ground_material: Arc<dyn material::Material + Send + Sync> =
         Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
-    world.add(Arc::new(Sphere::new(
+    world.add(make_ref(Sphere::new(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
         ground_material,
@@ -92,21 +93,21 @@ pub fn run(_scene: Option<i32>) {
                     sphere_material = Arc::new(Dielectric::new(1.5));
                 }
 
-                world.add(Arc::new(Sphere::new(center, 0.2, sphere_material)));
+                world.add(make_ref(Sphere::new(center, 0.2, sphere_material)));
             }
         }
     }
 
     let material1: Arc<dyn material::Material + Send + Sync> = Arc::new(Dielectric::new(1.5));
-    world.add(Arc::new(Sphere::new(Point3::new(0.0, 1.0, 0.0), 1.0, material1)));
+    world.add(make_ref(Sphere::new(Point3::new(0.0, 1.0, 0.0), 1.0, material1)));
 
     let material2: Arc<dyn material::Material + Send + Sync> =
         Arc::new(Lambertian::new(Color::new(0.4, 0.2, 0.1)));
-    world.add(Arc::new(Sphere::new(Point3::new(-4.0, 1.0, 0.0), 1.0, material2)));
+    world.add(make_ref(Sphere::new(Point3::new(-4.0, 1.0, 0.0), 1.0, material2)));
 
     let material3: Arc<dyn material::Material + Send + Sync> =
         Arc::new(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
-    world.add(Arc::new(Sphere::new(Point3::new(4.0, 1.0, 0.0), 1.0, material3)));
+    world.add(make_ref(Sphere::new(Point3::new(4.0, 1.0, 0.0), 1.0, material3)));
 
     let mut cam = Camera::default();
 

@@ -1,10 +1,15 @@
 use std::sync::Arc;
 
 use super::aabb::Aabb;
+use super::bvh::BvhNode;
+use super::constant_medium::ConstantMedium;
+use super::hittable_list::HittableList;
 use super::interval::Interval;
 use super::material::Material;
+use super::quad::Quad;
 use super::ray::Ray;
 use super::rtweekend::{degrees_to_radians, INFINITY};
+use super::sphere::Sphere;
 use super::vec3::{dot, Point3, Vec3};
 
 pub struct HitRecord {
@@ -51,14 +56,20 @@ pub trait Hittable: Send + Sync {
     fn bounding_box(&self) -> Aabb;
 }
 
+pub type HittableRef = Arc<HittableObject>;
+
+pub fn make_ref<T: Into<HittableObject>>(object: T) -> HittableRef {
+    Arc::new(object.into())
+}
+
 pub struct Translate {
-    object: Arc<dyn Hittable + Send + Sync>,
+    object: HittableRef,
     offset: Vec3,
     bbox: Aabb,
 }
 
 impl Translate {
-    pub fn new(object: Arc<dyn Hittable + Send + Sync>, offset: Vec3) -> Self {
+    pub fn new(object: HittableRef, offset: Vec3) -> Self {
         let bbox = object.bounding_box() + offset;
         Self { object, offset, bbox }
     }
@@ -79,14 +90,14 @@ impl Hittable for Translate {
 }
 
 pub struct RotateY {
-    object: Arc<dyn Hittable + Send + Sync>,
+    object: HittableRef,
     sin_theta: f64,
     cos_theta: f64,
     bbox: Aabb,
 }
 
 impl RotateY {
-    pub fn new(object: Arc<dyn Hittable + Send + Sync>, angle: f64) -> Self {
+    pub fn new(object: HittableRef, angle: f64) -> Self {
         let radians = degrees_to_radians(angle);
         let sin_theta = radians.sin();
         let cos_theta = radians.cos();
@@ -155,5 +166,83 @@ impl Hittable for RotateY {
 
     fn bounding_box(&self) -> Aabb {
         self.bbox
+    }
+}
+
+pub enum HittableObject {
+    Sphere(Sphere),
+    Quad(Quad),
+    ConstantMedium(ConstantMedium),
+    Translate(Translate),
+    RotateY(RotateY),
+    Bvh(BvhNode),
+    List(HittableList),
+}
+
+impl From<Sphere> for HittableObject {
+    fn from(value: Sphere) -> Self {
+        Self::Sphere(value)
+    }
+}
+
+impl From<Quad> for HittableObject {
+    fn from(value: Quad) -> Self {
+        Self::Quad(value)
+    }
+}
+
+impl From<ConstantMedium> for HittableObject {
+    fn from(value: ConstantMedium) -> Self {
+        Self::ConstantMedium(value)
+    }
+}
+
+impl From<Translate> for HittableObject {
+    fn from(value: Translate) -> Self {
+        Self::Translate(value)
+    }
+}
+
+impl From<RotateY> for HittableObject {
+    fn from(value: RotateY) -> Self {
+        Self::RotateY(value)
+    }
+}
+
+impl From<BvhNode> for HittableObject {
+    fn from(value: BvhNode) -> Self {
+        Self::Bvh(value)
+    }
+}
+
+impl From<HittableList> for HittableObject {
+    fn from(value: HittableList) -> Self {
+        Self::List(value)
+    }
+}
+
+impl Hittable for HittableObject {
+    fn hit(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+        match self {
+            HittableObject::Sphere(object) => object.hit(r, ray_t),
+            HittableObject::Quad(object) => object.hit(r, ray_t),
+            HittableObject::ConstantMedium(object) => object.hit(r, ray_t),
+            HittableObject::Translate(object) => object.hit(r, ray_t),
+            HittableObject::RotateY(object) => object.hit(r, ray_t),
+            HittableObject::Bvh(object) => object.hit(r, ray_t),
+            HittableObject::List(object) => object.hit(r, ray_t),
+        }
+    }
+
+    fn bounding_box(&self) -> Aabb {
+        match self {
+            HittableObject::Sphere(object) => object.bounding_box(),
+            HittableObject::Quad(object) => object.bounding_box(),
+            HittableObject::ConstantMedium(object) => object.bounding_box(),
+            HittableObject::Translate(object) => object.bounding_box(),
+            HittableObject::RotateY(object) => object.bounding_box(),
+            HittableObject::Bvh(object) => object.bounding_box(),
+            HittableObject::List(object) => object.bounding_box(),
+        }
     }
 }

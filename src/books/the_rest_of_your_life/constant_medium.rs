@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::aabb::Aabb;
-use super::hittable::{HitRecord, Hittable};
+use super::hittable::{HitRecord, Hittable, HittableRef};
 use super::interval::Interval;
 use super::material::{Isotropic, Material};
 use super::ray::Ray;
@@ -9,14 +9,18 @@ use super::rtweekend::{random_double, INFINITY};
 use super::vec3::{Color, Vec3};
 
 pub struct ConstantMedium {
-    boundary: Arc<dyn Hittable + Send + Sync>,
+    boundary: HittableRef,
     neg_inv_density: f64,
     phase_function: Arc<dyn Material + Send + Sync>,
 }
 
 impl ConstantMedium {
     #[allow(dead_code)]
-    pub fn new(boundary: Arc<dyn Hittable + Send + Sync>, density: f64, tex: Arc<dyn super::texture::Texture + Send + Sync>) -> Self {
+    pub fn new(
+        boundary: HittableRef,
+        density: f64,
+        tex: Arc<dyn super::texture::Texture + Send + Sync>,
+    ) -> Self {
         Self {
             boundary,
             neg_inv_density: -1.0 / density,
@@ -24,7 +28,7 @@ impl ConstantMedium {
         }
     }
 
-    pub fn from_color(boundary: Arc<dyn Hittable + Send + Sync>, density: f64, albedo: Color) -> Self {
+    pub fn from_color(boundary: HittableRef, density: f64, albedo: Color) -> Self {
         Self {
             boundary,
             neg_inv_density: -1.0 / density,

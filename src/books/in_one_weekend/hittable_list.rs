@@ -1,12 +1,10 @@
-use std::sync::Arc;
-
 use super::aabb::Aabb;
-use super::hittable::{HitRecord, Hittable};
+use super::hittable::{HitRecord, Hittable, HittableRef};
 use super::interval::Interval;
 use super::ray::Ray;
 
 pub struct HittableList {
-    pub objects: Vec<Arc<dyn Hittable + Send + Sync>>,
+    pub objects: Vec<HittableRef>,
     bbox: Aabb,
 }
 
@@ -15,7 +13,7 @@ impl HittableList {
         Self { objects: Vec::new(), bbox: Aabb::EMPTY }
     }
 
-    pub fn add(&mut self, object: Arc<dyn Hittable + Send + Sync>) {
+    pub fn add(&mut self, object: HittableRef) {
         self.objects.push(object);
         let len = self.objects.len();
         if len == 1 {

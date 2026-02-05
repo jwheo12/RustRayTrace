@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 use bvh::BvhNode;
 use camera::Camera;
-use hittable::{RotateY, Translate};
+use hittable::{make_ref, RotateY, Translate};
 use hittable_list::HittableList;
 use material::{Dielectric, DiffuseLight, EmptyMaterial, Lambertian};
 use quad::{make_box, Quad};
@@ -77,31 +77,31 @@ pub fn run(_scene: Option<i32>) {
     let light = Arc::new(DiffuseLight::new(Color::new(15.0, 15.0, 15.0)));
 
     // Cornell box sides
-    world.add(Arc::new(Quad::new(
+    world.add(make_ref(Quad::new(
         Point3::new(555.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 555.0),
         Vec3::new(0.0, 555.0, 0.0),
         green,
     )));
-    world.add(Arc::new(Quad::new(
+    world.add(make_ref(Quad::new(
         Point3::new(0.0, 0.0, 555.0),
         Vec3::new(0.0, 0.0, -555.0),
         Vec3::new(0.0, 555.0, 0.0),
         red,
     )));
-    world.add(Arc::new(Quad::new(
+    world.add(make_ref(Quad::new(
         Point3::new(0.0, 555.0, 0.0),
         Vec3::new(555.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 555.0),
         white.clone(),
     )));
-    world.add(Arc::new(Quad::new(
+    world.add(make_ref(Quad::new(
         Point3::new(0.0, 0.0, 555.0),
         Vec3::new(555.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, -555.0),
         white.clone(),
     )));
-    world.add(Arc::new(Quad::new(
+    world.add(make_ref(Quad::new(
         Point3::new(555.0, 0.0, 555.0),
         Vec3::new(-555.0, 0.0, 0.0),
         Vec3::new(0.0, 555.0, 0.0),
@@ -109,7 +109,7 @@ pub fn run(_scene: Option<i32>) {
     )));
 
     // Light
-    world.add(Arc::new(Quad::new(
+    world.add(make_ref(Quad::new(
         Point3::new(213.0, 554.0, 227.0),
         Vec3::new(130.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 105.0),
@@ -118,24 +118,24 @@ pub fn run(_scene: Option<i32>) {
 
     // Box
     let box1 = make_box(Point3::new(0.0, 0.0, 0.0), Point3::new(165.0, 330.0, 165.0), white.clone());
-    let box1 = Arc::new(RotateY::new(box1, 15.0));
-    let box1 = Arc::new(Translate::new(box1, Vec3::new(265.0, 0.0, 295.0)));
+    let box1 = make_ref(RotateY::new(box1, 15.0));
+    let box1 = make_ref(Translate::new(box1, Vec3::new(265.0, 0.0, 295.0)));
     world.add(box1);
 
     // Glass Sphere
     let glass = Arc::new(Dielectric::new(1.5));
-    world.add(Arc::new(Sphere::new(Point3::new(190.0, 90.0, 190.0), 90.0, glass)));
+    world.add(make_ref(Sphere::new(Point3::new(190.0, 90.0, 190.0), 90.0, glass)));
 
     // Light Sources
     let empty_material = Arc::new(EmptyMaterial);
     let mut lights = HittableList::new();
-    lights.add(Arc::new(Quad::new(
+    lights.add(make_ref(Quad::new(
         Point3::new(343.0, 554.0, 332.0),
         Vec3::new(-130.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, -105.0),
         empty_material.clone(),
     )));
-    lights.add(Arc::new(Sphere::new(
+    lights.add(make_ref(Sphere::new(
         Point3::new(190.0, 90.0, 190.0),
         90.0,
         empty_material,
@@ -159,5 +159,5 @@ pub fn run(_scene: Option<i32>) {
     apply_overrides(&mut cam);
 
     let world = BvhNode::new(world);
-    cam.render(&world, Arc::new(lights));
+    cam.render(&world, make_ref(lights));
 }

@@ -58,7 +58,7 @@ struct CameraInternals {
 }
 
 impl Camera {
-    pub fn render(&self, world: &dyn Hittable) {
+    pub fn render<H: Hittable>(&self, world: &H) {
         let data = self.initialize();
 
         let image_height = data.image_height as usize;
@@ -171,7 +171,7 @@ impl Camera {
         data.center + (p[0] * data.defocus_disk_u) + (p[1] * data.defocus_disk_v)
     }
 
-    fn ray_color(&self, r: Ray, depth: i32, world: &dyn Hittable) -> Color {
+    fn ray_color<H: Hittable>(&self, r: Ray, depth: i32, world: &H) -> Color {
         if depth <= 0 {
             return Color::new(0.0, 0.0, 0.0);
         }

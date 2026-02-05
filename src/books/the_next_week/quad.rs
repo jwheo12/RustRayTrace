@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::aabb::Aabb;
-use super::hittable::{HitRecord, Hittable};
+use super::hittable::{make_ref, HitRecord, Hittable, HittableRef};
 use super::hittable_list::HittableList;
 use super::interval::Interval;
 use super::material::Material;
@@ -93,7 +93,7 @@ pub fn make_box(
     a: Point3,
     b: Point3,
     mat: Arc<dyn Material + Send + Sync>,
-) -> Arc<dyn Hittable + Send + Sync> {
+) -> HittableRef {
     let mut sides = HittableList::new();
 
     let min = Point3::new(a.x().min(b.x()), a.y().min(b.y()), a.z().min(b.z()));
@@ -103,12 +103,12 @@ pub fn make_box(
     let dy = Vec3::new(0.0, max.y() - min.y(), 0.0);
     let dz = Vec3::new(0.0, 0.0, max.z() - min.z());
 
-    sides.add(Arc::new(Quad::new(Point3::new(min.x(), min.y(), max.z()), dx, dy, mat.clone())));
-    sides.add(Arc::new(Quad::new(Point3::new(max.x(), min.y(), max.z()), -dz, dy, mat.clone())));
-    sides.add(Arc::new(Quad::new(Point3::new(max.x(), min.y(), min.z()), -dx, dy, mat.clone())));
-    sides.add(Arc::new(Quad::new(Point3::new(min.x(), min.y(), min.z()), dz, dy, mat.clone())));
-    sides.add(Arc::new(Quad::new(Point3::new(min.x(), max.y(), max.z()), dx, -dz, mat.clone())));
-    sides.add(Arc::new(Quad::new(Point3::new(min.x(), min.y(), min.z()), dx, dz, mat)));
+    sides.add(make_ref(Quad::new(Point3::new(min.x(), min.y(), max.z()), dx, dy, mat.clone())));
+    sides.add(make_ref(Quad::new(Point3::new(max.x(), min.y(), max.z()), -dz, dy, mat.clone())));
+    sides.add(make_ref(Quad::new(Point3::new(max.x(), min.y(), min.z()), -dx, dy, mat.clone())));
+    sides.add(make_ref(Quad::new(Point3::new(min.x(), min.y(), min.z()), dz, dy, mat.clone())));
+    sides.add(make_ref(Quad::new(Point3::new(min.x(), max.y(), max.z()), dx, -dz, mat.clone())));
+    sides.add(make_ref(Quad::new(Point3::new(min.x(), min.y(), min.z()), dx, dz, mat)));
 
-    Arc::new(sides)
+    make_ref(sides)
 }

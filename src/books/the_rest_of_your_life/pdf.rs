@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::hittable::Hittable;
+use super::hittable::{Hittable, HittableRef};
 use super::onb::Onb;
 use super::rtweekend::{random_double, PI};
 use super::vec3::{dot, random_cosine_direction, random_unit_vector, unit_vector, Point3, Vec3};
@@ -48,12 +48,12 @@ impl Pdf for CosinePdf {
 }
 
 pub struct HittablePdf {
-    objects: Arc<dyn Hittable + Send + Sync>,
+    objects: HittableRef,
     origin: Point3,
 }
 
 impl HittablePdf {
-    pub fn new(objects: Arc<dyn Hittable + Send + Sync>, origin: Point3) -> Self {
+    pub fn new(objects: HittableRef, origin: Point3) -> Self {
         Self { objects, origin }
     }
 }
