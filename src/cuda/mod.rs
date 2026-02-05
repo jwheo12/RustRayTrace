@@ -13,24 +13,20 @@ mod imp {
 
     const CUDA_SOURCE: &str = r#"
 extern "C" {
-struct float3 { float x; float y; float z; };
-struct Float4 { float x; float y; float z; float w; };
-struct Uint4 { unsigned int x; unsigned int y; unsigned int z; unsigned int w; };
-
 struct Camera {
-    Float4 origin;
-    Float4 pixel00;
-    Float4 pixel_delta_u;
-    Float4 pixel_delta_v;
-    Float4 u;
-    Float4 v;
-    Float4 background;
-    Float4 params_f;
-    Uint4 params_u;
+    float4 origin;
+    float4 pixel00;
+    float4 pixel_delta_u;
+    float4 pixel_delta_v;
+    float4 u;
+    float4 v;
+    float4 background;
+    float4 params_f;
+    uint4 params_u;
 };
 
 struct Sphere {
-    Float4 center_radius;
+    float4 center_radius;
     unsigned int material_index;
     unsigned int _pad0;
     unsigned int _pad1;
@@ -38,7 +34,7 @@ struct Sphere {
 };
 
 struct Material {
-    Float4 albedo_fuzz;
+    float4 albedo_fuzz;
     unsigned int kind;
     float ref_idx;
     unsigned int _pad0;
@@ -59,28 +55,28 @@ struct Hit {
     unsigned int mat_index;
 };
 
-__device__ __forceinline__ float3 make_float3(float x, float y, float z) {
+__device__ __forceinline__ float3 f3(float x, float y, float z) {
     float3 v; v.x = x; v.y = y; v.z = z; return v;
 }
 
-__device__ __forceinline__ Float4 make_float4(float x, float y, float z, float w) {
-    Float4 v; v.x = x; v.y = y; v.z = z; v.w = w; return v;
+__device__ __forceinline__ float4 f4(float x, float y, float z, float w) {
+    float4 v; v.x = x; v.y = y; v.z = z; v.w = w; return v;
 }
 
-__device__ __forceinline__ float3 xyz(const Float4& v) {
-    return make_float3(v.x, v.y, v.z);
+__device__ __forceinline__ float3 xyz(const float4& v) {
+    return f3(v.x, v.y, v.z);
 }
 
 __device__ __forceinline__ float3 add3(float3 a, float3 b) {
-    return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
+    return f3(a.x + b.x, a.y + b.y, a.z + b.z);
 }
 
 __device__ __forceinline__ float3 sub3(float3 a, float3 b) {
-    return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
+    return f3(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
 __device__ __forceinline__ float3 mul3(float3 a, float b) {
-    return make_float3(a.x * b, a.y * b, a.z * b);
+    return f3(a.x * b, a.y * b, a.z * b);
 }
 
 __device__ __forceinline__ float dot3(float3 a, float3 b) {
@@ -93,7 +89,7 @@ __device__ __forceinline__ float3 normalize3(float3 v) {
 }
 
 __device__ __forceinline__ float3 cross3(float3 a, float3 b) {
-    return make_float3(
+    return f3(
         a.y * b.z - a.z * b.y,
         a.z * b.x - a.x * b.z,
         a.x * b.y - a.y * b.x
@@ -105,7 +101,7 @@ __device__ __forceinline__ float3 reflect3(float3 v, float3 n) {
 }
 
 __device__ __forceinline__ float3 refract3(float3 uv, float3 n, float etai_over_etat) {
-    float cos_theta = fminf(dot3(make_float3(-uv.x, -uv.y, -uv.z), n), 1.0f);
+    float cos_theta = fminf(dot3(f3(-uv.x, -uv.y, -uv.z), n), 1.0f);
     float3 r_out_perp = mul3(add3(uv, mul3(n, cos_theta)), etai_over_etat);
     float k = 1.0f - dot3(r_out_perp, r_out_perp);
     float3 r_out_parallel = mul3(n, -sqrtf(fabsf(k)));
@@ -150,14 +146,14 @@ __device__ __forceinline__ float3 random_unit_vector(unsigned int& state) {
     float a = rand_f(state) * 2.0f * PI;
     float z = rand_f(state) * 2.0f - 1.0f;
     float r = sqrtf(fmaxf(0.0f, 1.0f - z * z));
-    return make_float3(r * cosf(a), r * sinf(a), z);
+    return f3(r * cosf(a), r * sinf(a), z);
 }
 
 __device__ __forceinline__ float3 random_in_unit_disk(unsigned int& state) {
     const float PI = 3.14159265359f;
     float r = sqrtf(rand_f(state));
     float theta = rand_f(state) * 2.0f * PI;
-    return make_float3(r * cosf(theta), r * sinf(theta), 0.0f);
+    return f3(r * cosf(theta), r * sinf(theta), 0.0f);
 }
 
 __device__ __forceinline__ Ray get_ray(const Camera& camera, float u, float v, unsigned int& state) {
@@ -219,7 +215,7 @@ __device__ __forceinline__ Hit hit_spheres(const Ray& ray, const Sphere* spheres
 
 __device__ __forceinline__ float3 ray_color(const Ray& ray_in, const Camera& camera, const Sphere* spheres, unsigned int sphere_count, const Material* materials, unsigned int& state) {
     Ray ray = ray_in;
-    float3 attenuation = make_float3(1.0f, 1.0f, 1.0f);
+    float3 attenuation = f3(1.0f, 1.0f, 1.0f);
     unsigned int max_depth = camera.params_u.x;
 
     for (unsigned int depth = 0; depth < max_depth; ++depth) {
@@ -233,7 +229,7 @@ __device__ __forceinline__ float3 ray_color(const Ray& ray_in, const Camera& cam
                 }
                 ray.origin = hit.p;
                 ray.direction = scatter_dir;
-                attenuation = make_float3(
+                attenuation = f3(
                     attenuation.x * mat.albedo_fuzz.x,
                     attenuation.y * mat.albedo_fuzz.y,
                     attenuation.z * mat.albedo_fuzz.z
@@ -243,11 +239,11 @@ __device__ __forceinline__ float3 ray_color(const Ray& ray_in, const Camera& cam
                 float fuzz = mat.albedo_fuzz.w;
                 float3 scattered = add3(reflected, mul3(random_unit_vector(state), fuzz));
                 if (dot3(scattered, hit.normal) <= 0.0f) {
-                    return make_float3(0.0f, 0.0f, 0.0f);
+                    return f3(0.0f, 0.0f, 0.0f);
                 }
                 ray.origin = hit.p;
                 ray.direction = scattered;
-                attenuation = make_float3(
+                attenuation = f3(
                     attenuation.x * mat.albedo_fuzz.x,
                     attenuation.y * mat.albedo_fuzz.y,
                     attenuation.z * mat.albedo_fuzz.z
@@ -256,7 +252,7 @@ __device__ __forceinline__ float3 ray_color(const Ray& ray_in, const Camera& cam
                 float ref_idx = mat.ref_idx;
                 float etai_over_etat = hit.front_face ? (1.0f / ref_idx) : ref_idx;
                 float3 unit_dir = normalize3(ray.direction);
-                float cos_theta = fminf(dot3(make_float3(-unit_dir.x, -unit_dir.y, -unit_dir.z), hit.normal), 1.0f);
+                float cos_theta = fminf(dot3(f3(-unit_dir.x, -unit_dir.y, -unit_dir.z), hit.normal), 1.0f);
                 float sin_theta = sqrtf(fmaxf(0.0f, 1.0f - cos_theta * cos_theta));
                 int cannot_refract = etai_over_etat * sin_theta > 1.0f;
 
@@ -274,33 +270,33 @@ __device__ __forceinline__ float3 ray_color(const Ray& ray_in, const Camera& cam
                 float p = fmaxf(attenuation.x, fmaxf(attenuation.y, attenuation.z));
                 p = fminf(fmaxf(p, 0.05f), 0.95f);
                 if (rand_f(state) > p) {
-                    return make_float3(0.0f, 0.0f, 0.0f);
+                    return f3(0.0f, 0.0f, 0.0f);
                 }
                 attenuation = mul3(attenuation, 1.0f / p);
             }
         } else {
             if (camera.params_u.w == 1u) {
                 float3 bg = xyz(camera.background);
-                return make_float3(
-                    attenuation.x * bg.x,
-                    attenuation.y * bg.y,
-                    attenuation.z * bg.z
-                );
+    return f3(
+        attenuation.x * bg.x,
+        attenuation.y * bg.y,
+        attenuation.z * bg.z
+    );
             }
             float3 unit_dir = normalize3(ray.direction);
             float t = 0.5f * (unit_dir.y + 1.0f);
             float3 background = add3(
-                mul3(make_float3(1.0f, 1.0f, 1.0f), (1.0f - t)),
-                mul3(make_float3(0.5f, 0.7f, 1.0f), t)
+                mul3(f3(1.0f, 1.0f, 1.0f), (1.0f - t)),
+                mul3(f3(0.5f, 0.7f, 1.0f), t)
             );
-            return make_float3(
+            return f3(
                 attenuation.x * background.x,
                 attenuation.y * background.y,
                 attenuation.z * background.z
             );
         }
     }
-    return make_float3(0.0f, 0.0f, 0.0f);
+    return f3(0.0f, 0.0f, 0.0f);
 }
 
 __global__ void render(
@@ -308,7 +304,7 @@ __global__ void render(
     const Sphere* spheres,
     unsigned int sphere_count,
     const Material* materials,
-    Float4* accum,
+    float4* accum,
     unsigned int seed,
     unsigned int spp,
     unsigned int width,
@@ -321,7 +317,7 @@ __global__ void render(
     }
 
     unsigned int rng = rng_init(x, y, seed);
-    float3 color = make_float3(0.0f, 0.0f, 0.0f);
+    float3 color = f3(0.0f, 0.0f, 0.0f);
     for (unsigned int s = 0; s < spp; ++s) {
         float u = (float)x + rand_f(rng);
         float v = (float)y + rand_f(rng);
@@ -331,8 +327,8 @@ __global__ void render(
     }
 
     unsigned int idx = y * width + x;
-    Float4 prev = accum[idx];
-    accum[idx] = make_float4(prev.x + color.x, prev.y + color.y, prev.z + color.z, prev.w + (float)spp);
+    float4 prev = accum[idx];
+    accum[idx] = f4(prev.x + color.x, prev.y + color.y, prev.z + color.z, prev.w + (float)spp);
 }
 } // extern "C"
 "#;
